@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IBVAP — Intelligent Border Video Analytics Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F4F1;
+  --surface:#FFFFFF;
+  --ink:#1B2430;
+  --ink-soft:#5B6672;
+  --hairline:#DDE1DF;
+  --hairline-strong:#C7CCC9;
+  --signal:#28405C;
+  --signal-soft:#EDF1F5;
+  --critical:#B23A2E;
+  --critical-soft:#FBEEEC;
+  --amber:#A9791F;
+  --amber-soft:#FBF3E3;
+  --clear:#2E6B4F;
+  --clear-soft:#EAF3EE;
+  --radius:3px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+::selection{background:var(--signal);color:#fff;}
+button{font-family:'Inter',sans-serif;cursor:pointer;}
+a{color:inherit;}
+
+.progress-bar{
+  position:fixed;top:0;left:0;height:2px;background:var(--signal);
+  width:0%;z-index:200;transition:width 0.25s var(--ease), opacity 0.3s ease;
+  opacity:0;
+}
+.progress-bar.active{opacity:1;}
+
+/* ---------- Boot splash ---------- */
+.splash{
+  position:fixed;inset:0;z-index:300;
+  background:var(--paper);
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity 0.5s var(--ease), visibility 0.5s var(--ease);
+}
+.splash::before{
+  content:"";position:absolute;inset:0;
+  background-image:linear-gradient(var(--hairline) 1px, transparent 1px), linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size:34px 34px;
+  -webkit-mask-image:radial-gradient(ellipse at center, #000 0%, transparent 72%);
+  mask-image:radial-gradient(ellipse at center, #000 0%, transparent 72%);
+  opacity:0.7;
+}
+.splash.hide{opacity:0;visibility:hidden;pointer-events:none;}
+.splash-inner{position:relative;width:380px;max-width:88vw;text-align:center;animation:splashIn 0.6s var(--ease);}
+@keyframes splashIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.splash-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.16em;color:var(--ink-soft);margin-bottom:14px;}
+.splash-mark{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:38px;letter-spacing:0.005em;line-height:1;}
+.splash-mark span{color:var(--signal);}
+.splash-sub{font-size:12.5px;color:var(--ink-soft);margin-top:8px;margin-bottom:38px;}
+.splash-meter{height:3px;background:var(--hairline);border-radius:2px;overflow:hidden;margin-bottom:10px;position:relative;}
+.splash-meter-fill{height:100%;width:0%;background:var(--signal);border-radius:2px;transition:width 0.4s var(--ease);}
+.splash-readout{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:26px;}
+.splash-pct{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;}
+.splash-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);text-align:right;}
+.splash-checks{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--hairline-strong);line-height:2;min-height:110px;}
+.splash-checks .item{color:var(--ink-soft);transition:color 0.2s ease;}
+.splash-checks .item::before{content:'· ';color:var(--hairline-strong);}
+.splash-checks .item.done{color:var(--ink);}
+.splash-checks .item.done::before{content:'✓ ';color:var(--clear);}
+
+.conn-banner{
+  max-height:0;overflow:hidden;
+  background:var(--critical);color:#fff;font-size:12.5px;text-align:center;
+  transition:max-height 0.35s var(--ease), padding 0.35s var(--ease);
+}
+.conn-banner.show{max-height:60px;padding:9px 20px;}
+.conn-banner code{background:rgba(255,255,255,0.18);padding:1px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace;}
+.link-btn{background:none;border:none;color:#fff;text-decoration:underline;font-size:12.5px;padding:0;font-family:'Inter',sans-serif;}
+
+.shell{display:flex;min-height:100vh;}
+
+.rail{
+  width:238px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--hairline);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;
+  animation:railIn 0.5s var(--ease);
+}
+@keyframes railIn{from{transform:translateX(-16px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.rail-brand{padding:22px 20px 18px 20px;border-bottom:1px solid var(--hairline);}
+.rail-brand .mark{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:0.01em;}
+.rail-brand .mark span{color:var(--signal);}
+.rail-brand .sub{margin-top:3px;font-size:11.5px;color:var(--ink-soft);line-height:1.4;}
+.rail-nav{padding:14px 10px;flex:1;overflow-y:auto;position:relative;}
+.rail-group-label{font-size:10.5px;color:var(--ink-soft);padding:12px 10px 6px 10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.02em;}
+.rail-item{
+  display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:none;background:transparent;
+  border-radius:var(--radius);color:var(--ink-soft);font-size:13.5px;text-align:left;font-weight:500;
+  position:relative;transition:background 0.18s ease, color 0.18s ease;
+}
+.rail-item .dot{width:6px;height:6px;border-radius:50%;background:var(--hairline-strong);flex-shrink:0;transition:background 0.18s ease, transform 0.18s ease;}
+.rail-item:hover{background:var(--paper);color:var(--ink);}
+.rail-item:hover .dot{transform:scale(1.25);}
+.rail-item.active{background:var(--signal-soft);color:var(--signal);}
+.rail-item.active .dot{background:var(--signal);}
+.rail-item .count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);transition:color 0.18s ease;}
+.rail-item.active .count{color:var(--signal);}
+.rail-foot{padding:14px 20px;border-top:1px solid var(--hairline);font-size:11.5px;color:var(--ink-soft);}
+.rail-foot .status-line{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--clear);position:relative;flex-shrink:0;transition:background 0.3s ease;}
+.pulse::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--clear);opacity:0.5;animation:pulse 2.4s ease-out infinite;}
+.pulse.down{background:var(--critical);}
+.pulse.down::after{border-color:var(--critical);}
+@keyframes pulse{0%{transform:scale(0.6);opacity:0.6;}100%{transform:scale(1.8);opacity:0;}}
+
+.main{margin-left:238px;flex:1;display:flex;flex-direction:column;min-width:0;}
+
+.topbar{
+  height:58px;border-bottom:1px solid var(--hairline);background:var(--surface);
+  display:flex;align-items:center;padding:0 26px;gap:18px;position:sticky;top:0;z-index:5;
+}
+.topbar h1{font-size:16.5px;font-weight:600;margin:0;letter-spacing:0.01em;transition:opacity 0.2s ease;}
+.topbar .crumb{font-size:12px;color:var(--ink-soft);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.topbar-stat{font-size:11.5px;color:var(--ink-soft);text-align:right;line-height:1.3;}
+.topbar-stat b{display:block;font-family:'IBM Plex Mono',monospace;color:var(--ink);font-size:12.5px;font-weight:500;}
+.operator-chip{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border:1px solid var(--hairline);border-radius:20px;}
+.operator-chip .avatar{width:22px;height:22px;border-radius:50%;background:var(--signal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;font-family:'Space Grotesk',sans-serif;}
+.operator-chip .name{font-size:12.5px;font-weight:500;}
+
+.view{padding:26px 28px 60px 28px;display:none;}
+.view.active{display:block;animation:viewIn 0.35s var(--ease);}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.view-head{margin-bottom:20px;}
+.view-head h2{font-size:21px;margin:0 0 4px 0;font-weight:600;}
+.view-head p{margin:0;color:var(--ink-soft);font-size:13px;max-width:640px;}
+.view-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+
+.panel{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);transition:box-shadow 0.2s ease;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--hairline);gap:10px;}
+.panel-head h3{font-size:14px;margin:0;font-weight:600;}
+.panel-head .meta{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+.panel-head .meta.demo-tag{color:var(--amber);}
+.panel-body{padding:16px 18px;}
+
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.stat-card{
+  background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);padding:16px 18px;
+  transition:transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  animation:cardIn 0.4s var(--ease) backwards;
+}
+.stat-card:nth-child(1){animation-delay:0.02s;}
+.stat-card:nth-child(2){animation-delay:0.07s;}
+.stat-card:nth-child(3){animation-delay:0.12s;}
+.stat-card:nth-child(4){animation-delay:0.17s;}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(27,36,48,0.06);}
+.stat-card .label{font-size:11.5px;color:var(--ink-soft);margin-bottom:8px;}
+.stat-card .value{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+.stat-card .value small{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;color:var(--ink-soft);margin-left:4px;}
+.stat-card .trend{margin-top:8px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;}
+.trend.up{color:var(--critical);}
+.trend.down{color:var(--clear);}
+.trend.flat{color:var(--ink-soft);}
+
+.grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+
+table{width:100%;border-collapse:collapse;font-size:12.8px;}
+thead th{text-align:left;font-weight:500;color:var(--ink-soft);font-size:11px;padding:0 10px 8px 10px;border-bottom:1px solid var(--hairline);font-family:'IBM Plex Mono',monospace;font-weight:400;}
+tbody td{padding:10px 10px;border-bottom:1px solid var(--hairline);vertical-align:middle;}
+tbody tr{transition:background 0.15s ease;animation:rowIn 0.3s var(--ease) backwards;}
+tbody tr:nth-child(1){animation-delay:0.01s;} tbody tr:nth-child(2){animation-delay:0.03s;}
+tbody tr:nth-child(3){animation-delay:0.05s;} tbody tr:nth-child(4){animation-delay:0.07s;}
+tbody tr:nth-child(5){animation-delay:0.09s;} tbody tr:nth-child(n+6){animation-delay:0.1s;}
+@keyframes rowIn{from{opacity:0;}to{opacity:1;}}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--paper);}
+td.mono, th.mono{font-family:'IBM Plex Mono',monospace;}
+td .desc{color:var(--ink-soft);font-size:12px;margin-top:2px;}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;transition:transform 0.15s ease;}
+.badge.critical{background:var(--critical-soft);color:var(--critical);}
+.badge.amber{background:var(--amber-soft);color:var(--amber);}
+.badge.clear{background:var(--clear-soft);color:var(--clear);}
+.badge.neutral{background:var(--paper);color:var(--ink-soft);border:1px solid var(--hairline);}
+.badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+
+.btn{border:1px solid var(--hairline-strong);background:var(--surface);padding:7px 13px;border-radius:var(--radius);font-size:12.5px;font-weight:500;color:var(--ink);transition:all 0.15s ease;}
+.btn:hover{border-color:var(--signal);color:var(--signal);transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:#fff;}
+.btn.primary:hover{opacity:0.9;color:#fff;box-shadow:0 4px 14px rgba(40,64,92,0.25);}
+.btn.ghost{border-color:transparent;background:transparent;}
+.btn.ghost:hover{background:var(--paper);color:var(--ink);transform:none;}
+.btn.danger:hover{border-color:var(--critical);color:var(--critical);}
+.btn:disabled{opacity:0.45;cursor:default;transform:none !important;}
+.btn.loading{position:relative;color:transparent !important;pointer-events:none;}
+.btn.loading::after{
+  content:'';position:absolute;left:50%;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;
+  border:2px solid currentColor;border-color:var(--ink-soft) transparent var(--ink-soft) transparent;
+  border-radius:50%;animation:spin 0.7s linear infinite;
+}
+.btn.primary.loading::after{border-color:#fff transparent #fff transparent;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.toolbar input[type=text], .toolbar select{border:1px solid var(--hairline-strong);border-radius:var(--radius);padding:8px 11px;font-size:12.8px;font-family:'Inter',sans-serif;background:var(--surface);color:var(--ink);transition:border-color 0.15s ease;}
+.toolbar input[type=text]:focus, .toolbar select:focus{outline:none;border-color:var(--signal);}
+.toolbar input[type=text]{width:220px;}
+.toolbar .spacer{flex:1;}
+.filter-chip{padding:6px 12px;border-radius:20px;border:1px solid var(--hairline-strong);font-size:12px;font-weight:500;color:var(--ink-soft);background:var(--surface);transition:all 0.15s ease;}
+.filter-chip:hover{border-color:var(--signal);color:var(--signal);}
+.filter-chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+.map-wrap{padding:0;position:relative;}
+.map-svg{display:block;width:100%;height:auto;}
+.map-svg circle{transition:r 0.2s ease;}
+.map-legend{display:flex;gap:16px;padding:12px 18px;border-top:1px solid var(--hairline);font-size:11.5px;color:var(--ink-soft);flex-wrap:wrap;}
+.map-legend span{display:inline-flex;align-items:center;gap:6px;}
+.legend-swatch{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+.feed-list{display:flex;flex-direction:column;}
+.feed-item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--hairline);animation:rowIn 0.3s var(--ease) backwards;}
+.feed-item:nth-child(1){animation-delay:0.01s;} .feed-item:nth-child(2){animation-delay:0.04s;}
+.feed-item:nth-child(3){animation-delay:0.07s;} .feed-item:nth-child(n+4){animation-delay:0.1s;}
+.feed-item:last-child{border-bottom:none;}
+.feed-time{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);flex-shrink:0;width:96px;padding-top:1px;}
+.feed-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.feed-text{font-size:12.6px;}
+.feed-text b{font-weight:600;}
+.feed-sub{font-size:11.3px;color:var(--ink-soft);margin-top:1px;}
+
+.cam-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.cam-tile{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden;transition:transform 0.2s var(--ease), box-shadow 0.2s var(--ease);animation:cardIn 0.4s var(--ease) backwards;}
+.cam-tile:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(27,36,48,0.09);}
+.cam-feed{position:relative;height:150px;overflow:hidden;background:linear-gradient(160deg,#232B36,#161C24 60%);background-size:cover;background-position:center;}
+.cam-tile:hover .cam-feed-img{transform:scale(1.06);}
+.cam-feed-img{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform 0.5s var(--ease);}
+.cam-feed .cam-live-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0F141A;}
+.cam-feed .scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,0.035) 0px,rgba(255,255,255,0.035) 1px,transparent 1px,transparent 3px);}
+.cam-feed .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,20,26,0.55) 0%,rgba(15,20,26,0.05) 30%,rgba(15,20,26,0.05) 65%,rgba(15,20,26,0.6) 100%);}
+.cam-feed .cam-topline{position:absolute;top:8px;left:9px;right:9px;display:flex;justify-content:space-between;align-items:flex-start;font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,0.9);z-index:2;}
+.cam-feed .rec{display:flex;align-items:center;gap:5px;}
+.cam-feed .rec .r-dot{width:6px;height:6px;border-radius:50%;background:#E24C3C;animation:blink 1.4s step-start infinite;}
+@keyframes blink{50%{opacity:0.25;}}
+.cam-feed .cam-bottomline{position:absolute;bottom:8px;left:9px;right:9px;display:flex;justify-content:space-between;align-items:flex-end;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:rgba(255,255,255,0.85);z-index:2;}
+.cam-info{padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.cam-info .name{font-size:13px;font-weight:600;}
+.cam-info .loc{font-size:11.3px;color:var(--ink-soft);margin-top:1px;}
+.cam-actions{display:flex;gap:6px;flex-shrink:0;}
+.cam-offline .cam-feed-img, .cam-offline .scan{filter:grayscale(0.6) brightness(0.75);}
+.cam-offline .cam-feed::after{content:'SIGNAL LOST';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;letter-spacing:0.05em;background:rgba(15,20,26,0.45);z-index:3;}
+
+@keyframes shimmer{0%{background-position:-200px 0;}100%{background-position:200px 0;}}
+.skel{background:linear-gradient(90deg,#ECEEEB 0px,#F6F7F5 40px,#ECEEEB 80px);background-size:600px 100%;animation:shimmer 1.3s linear infinite;border-radius:4px;}
+.skel-cam{height:150px;border-radius:0;}
+.skel-line{height:11px;margin:6px 0;}
+.skel-card{height:88px;}
+
+.chat-shell{display:grid;grid-template-columns:1fr 300px;gap:16px;height:calc(100vh - 200px);min-height:460px;}
+.chat-panel{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden;}
+.chat-log{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;}
+.msg{max-width:74%;padding:10px 13px;border-radius:10px;font-size:13px;line-height:1.5;animation:msgIn 0.28s var(--ease);}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(0.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+.msg.bot{background:var(--paper);align-self:flex-start;border-bottom-left-radius:3px;}
+.msg.user{background:var(--signal);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;}
+.msg .t{font-size:10px;color:var(--ink-soft);margin-top:6px;font-family:'IBM Plex Mono',monospace;}
+.msg.user .t{color:rgba(255,255,255,0.7);}
+.typing-dots{display:flex;gap:4px;padding:4px 2px;}
+.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--ink-soft);opacity:0.5;animation:typingBounce 1s ease-in-out infinite;}
+.typing-dots span:nth-child(2){animation-delay:0.15s;}
+.typing-dots span:nth-child(3){animation-delay:0.3s;}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:0.4;}30%{transform:translateY(-4px);opacity:0.9;}}
+.chat-input-row{display:flex;gap:8px;padding:14px;border-top:1px solid var(--hairline);}
+.chat-input-row input{flex:1;border:1px solid var(--hairline-strong);border-radius:20px;padding:10px 16px;font-size:13px;font-family:'Inter',sans-serif;transition:border-color 0.15s ease;}
+.chat-input-row input:focus{outline:none;border-color:var(--signal);}
+.chat-suggest{display:flex;flex-direction:column;gap:8px;}
+.chat-suggest button{text-align:left;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--radius);background:var(--surface);font-size:12.3px;color:var(--ink-soft);transition:all 0.15s ease;}
+.chat-suggest button:hover{border-color:var(--signal);color:var(--signal);transform:translateX(2px);}
+.chat-suggest .label{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-bottom:2px;}
+
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--hairline);gap:16px;}
+.setting-row:last-child{border-bottom:none;}
+.setting-row .setting-label{font-size:13px;font-weight:500;}
+.setting-row .setting-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.toggle{position:relative;width:38px;height:22px;flex-shrink:0;background:var(--hairline-strong);border-radius:20px;border:none;padding:0;transition:background 0.2s ease;}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.toggle.on{background:var(--signal);}
+.toggle.on::after{transform:translateX(16px);}
+.sensitivity-track{display:flex;gap:6px;}
+.sensitivity-step{width:34px;height:8px;border-radius:20px;background:var(--hairline);border:none;padding:0;transition:background 0.2s ease, transform 0.15s ease;}
+.sensitivity-step:hover{transform:scaleY(1.3);}
+.sensitivity-step.on{background:var(--signal);}
+
+.zone-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--hairline);animation:rowIn 0.3s var(--ease) backwards;}
+.zone-row:last-child{border-bottom:none;}
+.zone-row .zone-name{font-size:13px;font-weight:500;flex:1;}
+.zone-row .zone-actions{display:flex;gap:6px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(20,24,28,0.4);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;opacity:0;transition:opacity 0.2s ease;}
+.modal-overlay.show{display:flex;opacity:1;}
+.modal{background:var(--surface);border-radius:6px;width:440px;max-width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.2);transform:translateY(10px) scale(0.98);opacity:0;transition:transform 0.22s var(--ease), opacity 0.22s var(--ease);}
+.modal-overlay.show .modal{transform:translateY(0) scale(1);opacity:1;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--hairline);}
+.modal-head h3{margin:0;font-size:15px;}
+.modal-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--hairline);}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;font-weight:500;color:var(--ink-soft);}
+.field input[type=text], .field input[type=url], .field textarea, .field select{border:1px solid var(--hairline-strong);border-radius:var(--radius);padding:8px 11px;font-size:13px;font-family:'Inter',sans-serif;background:var(--surface);color:var(--ink);transition:border-color 0.15s ease;}
+.field input:focus, .field textarea:focus, .field select:focus{outline:none;border-color:var(--signal);}
+.field textarea{resize:vertical;min-height:60px;}
+.field-row{display:flex;align-items:center;gap:8px;}
+.field-error{font-size:12px;color:var(--critical);background:var(--critical-soft);padding:8px 11px;border-radius:var(--radius);display:none;animation:cardIn 0.2s var(--ease);}
+.field-error.show{display:block;}
+#view-analyze form, #loginForm{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+#view-analyze .form-row{display:flex;gap:8px;flex-wrap:wrap;}
+#view-analyze input[type=text], #view-analyze input[type=number], #view-analyze input[type=password], #view-analyze input[type=file], #view-analyze textarea, #loginForm input{
+  border:1px solid var(--hairline-strong);border-radius:var(--radius);padding:8px 11px;font-size:13px;font-family:'Inter',sans-serif;background:var(--surface);color:var(--ink);flex:1;min-width:120px;width:100%;box-sizing:border-box;
+}
+#view-analyze textarea{resize:vertical;min-height:44px;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.analyze-result{margin-top:12px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--radius);padding:10px 12px;white-space:pre-wrap;max-height:220px;overflow:auto;display:none;}
+.analyze-result.show{display:block;}
+.small-del{background:none;border:none;color:var(--critical);cursor:pointer;font-size:12px;padding:2px 6px;}
+.operator-chip{cursor:pointer;}
+
+.toast-stack{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:10px;z-index:100;}
+.toast{
+  background:var(--ink);color:#fff;padding:11px 16px;border-radius:6px;font-size:12.8px;
+  display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,0.18);
+  animation:toastIn 0.3s var(--ease);min-width:220px;
+}
+.toast.leaving{animation:toastOut 0.25s var(--ease) forwards;}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px);}}
+.toast .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.toast.success .dot{background:#5DBE8A;}
+.toast.error .dot{background:#E2685A;}
+
+.empty-state{padding:40px 20px;text-align:center;color:var(--ink-soft);animation:cardIn 0.3s var(--ease);}
+.empty-state .glyph{font-size:26px;margin-bottom:8px;}
+
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:var(--hairline-strong);border-radius:20px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;}
+}
+@media (max-width:1180px){
+  .cam-grid{grid-template-columns:repeat(2,1fr);}
+  .grid-3{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:980px){
+  .rail{width:72px;}
+  .rail .label-text, .rail-brand .sub, .rail-group-label, .rail-item .count{display:none;}
+  .rail-item{justify-content:center;}
+  .main{margin-left:72px;}
+  .grid-2{grid-template-columns:1fr;}
+  .stat-strip{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="splash" id="splashScreen">
+  <div class="splash-inner">
+    <div class="splash-eyebrow">SECURE PERIMETER SYSTEM</div>
+    <div class="splash-mark">IBVAP<span>.</span></div>
+    <div class="splash-sub">Intelligent Border Video Analytics Platform</div>
+    <div class="splash-meter"><div class="splash-meter-fill" id="splashFill"></div></div>
+    <div class="splash-readout">
+      <span class="splash-pct mono" id="splashPct">0%</span>
+      <span class="splash-status mono" id="splashStatus">Connecting to backend…</span>
+    </div>
+    <div class="splash-checks" id="splashChecks"></div>
+  </div>
+</div>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="conn-banner" id="connBanner">
+  Can't reach the IBVAP backend at <code id="connApiBase"></code>. Start it with
+  <code>uvicorn app.main:app --reload</code> from the <code>backend</code> folder, then
+  <button id="connRetry" class="link-btn">retry</button>.
+</div>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-brand">
+      <div class="mark">IBVAP<span>.</span></div>
+      <div class="sub">Intelligent Border Video<br>Analytics Platform</div>
+    </div>
+    <div class="rail-nav" id="railNav">
+      <div class="rail-group-label">MONITOR</div>
+      <button class="rail-item active" data-view="overview"><span class="dot"></span><span class="label-text">Overview</span></button>
+      <button class="rail-item" data-view="cameras"><span class="dot"></span><span class="label-text">Cameras</span><span class="count" id="navCamCount"></span></button>
+      <button class="rail-item" data-view="alerts"><span class="dot"></span><span class="label-text">Alerts</span><span class="count" id="navAlertCount"></span></button>
+      <button class="rail-item" data-view="fence"><span class="dot"></span><span class="label-text">Virtual fence</span></button>
+      <div class="rail-group-label">IDENTIFY</div>
+      <button class="rail-item" data-view="vehicles"><span class="dot"></span><span class="label-text">ANPR &amp; vehicles</span></button>
+      <button class="rail-item" data-view="behavior"><span class="dot"></span><span class="label-text">Behavioral analytics</span></button>
+      <button class="rail-item" data-view="analyze"><span class="dot"></span><span class="label-text">Analyze &amp; configure</span></button>
+      <div class="rail-group-label">SUPPORT</div>
+      <button class="rail-item" data-view="assistant"><span class="dot"></span><span class="label-text">Assistant</span></button>
+    </div>
+    <div class="rail-foot">
+      <div class="status-line"><span class="pulse" id="connPulse"></span> <span id="connLabel">Checking backend…</span></div>
+      <div class="mono" id="railClock">--:--:--</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="topTitle">Overview</h1>
+      <span class="crumb" id="topCrumb">Sector-wide status</span>
+      <div class="topbar-right">
+        <div class="topbar-stat">Local time<b class="mono" id="topClock">--:--:--</b></div>
+        <button class="btn ghost" id="refreshAllBtn" title="Refetch cameras, alerts and fence data">Refresh</button>
+        <div class="operator-chip" id="operatorChip" title="Click to log out">
+          <span class="avatar" id="operatorAvatar">G</span>
+          <span class="name" id="operatorName">Guest</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="view active" id="view-overview">
+      <div class="view-head">
+        <h2>Sector overview</h2>
+        <p>Live status pulled from the IBVAP backend — cameras, alerts and fence zones.</p>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-card">
+          <div class="label">Cameras online</div>
+          <div class="value"><span id="statCamOnline">–</span><small id="statCamTotal"></small></div>
+          <div class="trend flat" id="statCamTrend">From live camera registry</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Alerts logged</div>
+          <div class="value" id="statAlerts">–</div>
+          <div class="trend flat" id="statAlertTrend">Critical / warning / info</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Fence zones elevated</div>
+          <div class="value"><span id="statZonesElevated">–</span><small id="statZonesTotal"></small></div>
+          <div class="trend flat" id="statFenceTrend">Amber vs. normal</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Perimeter armed</div>
+          <div class="value" id="statArmed">–</div>
+          <div class="trend flat" id="statSensitivity">Sensitivity —</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel map-wrap">
+          <div class="panel-head">
+            <h3>Camera network</h3>
+            <span class="meta">GROUPED BY SECTOR · SCHEMATIC, NOT TO SCALE</span>
+          </div>
+          <svg class="map-svg" id="sectorMap" viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="map-legend">
+            <span><span class="legend-swatch" style="background:#2E6B4F"></span>Online</span>
+            <span><span class="legend-swatch" style="background:#B23A2E"></span>Offline</span>
+            <span><span class="legend-swatch" style="background:#A9791F"></span>Zone elevated</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Recent alerts</h3>
+            <span class="meta">FROM BACKEND</span>
+          </div>
+          <div class="panel-body">
+            <div class="feed-list" id="activityFeed"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-cameras">
+      <div class="view-head">
+        <div class="view-head-row">
+          <div>
+            <h2>Camera network</h2>
+            <p>Registered IP camera nodes — full CRUD against the backend registry.</p>
+          </div>
+          <button class="btn primary" id="addCameraBtn">Add camera</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="filter-chip active" data-camfilter="all">All feeds</button>
+        <button class="filter-chip" data-camfilter="online">Online</button>
+        <button class="filter-chip" data-camfilter="offline">Offline</button>
+        <button class="filter-chip" data-camfilter="night">Night-capable</button>
+        <div class="spacer"></div>
+        <input type="text" id="camSearch" placeholder="Search camera, sector, IP…">
+      </div>
+      <div class="cam-grid" id="camGrid"></div>
+
+      <div class="view-head" style="margin-top:28px;">
+        <div class="view-head-row">
+          <div>
+            <h2>Laptop webcams</h2>
+            <p>Use your laptop or USB webcam directly from the browser. This section is separate from RTSP cameras.</p>
+          </div>
+          <div class="cam-actions">
+            <button class="btn primary" id="startWebcamBtn">Start webcam</button>
+            <button class="btn ghost" id="stopWebcamBtn" disabled>Stop webcam</button>
+          </div>
+        </div>
+      </div>
+      <div class="cam-grid" id="webcamGrid">
+        <div class="cam-tile">
+          <div class="cam-feed" style="display:flex;align-items:center;justify-content:center;min-height:220px;">
+            <video id="laptopWebcamVideo" class="cam-live-video" autoplay muted playsinline style="display:none;"></video>
+            <div id="webcamPlaceholder" class="empty-state">Webcam is stopped</div>
+          </div>
+          <div class="cam-info">
+            <div>
+              <div class="name">Laptop / USB webcam</div>
+              <div class="loc">Browser camera · Not RTSP</div>
+            </div>
+            <span class="badge critical" id="webcamStatusBadge"><span class="dot"></span>Stopped</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-alerts">
+      <div class="view-head">
+        <div class="view-head-row">
+          <div>
+            <h2>Alert log</h2>
+            <p>Every event on record in the backend, newest first.</p>
+          </div>
+          <button class="btn primary" id="addAlertBtn">Log alert</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="filter-chip active" data-alertfilter="all">All</button>
+        <button class="filter-chip" data-alertfilter="critical">Critical</button>
+        <button class="filter-chip" data-alertfilter="warning">Warning</button>
+        <button class="filter-chip" data-alertfilter="info">Info</button>
+        <div class="spacer"></div>
+        <input type="text" id="alertSearch" placeholder="Search alerts…">
+      </div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:110px">Ref</th>
+              <th style="width:150px">Time</th>
+              <th>Title &amp; description</th>
+              <th style="width:100px">Severity</th>
+              <th style="width:150px"></th>
+            </tr>
+          </thead>
+          <tbody id="alertTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="view" id="view-fence">
+      <div class="view-head">
+        <h2>Virtual fence</h2>
+        <p>Software-defined perimeter zones and detection settings — read and written straight from the backend.</p>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Zones</h3>
+            <button class="btn ghost" id="addZoneBtn">Add zone</button>
+          </div>
+          <div class="panel-body">
+            <div class="feed-list" id="zoneList"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Detection settings</h3>
+            <span class="meta" id="settingsSavedTag"></span>
+          </div>
+          <div class="panel-body" id="fenceSettings"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-vehicles">
+      <div class="view-head">
+        <h2>ANPR &amp; vehicle classification</h2>
+        <p>Plate reads and vehicle typing extracted in software from ordinary road-facing cameras.</p>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Plate reads</h3>
+          </div>
+          <table>
+            <thead><tr><th style="width:80px">Time</th><th>Plate</th><th>Camera</th><th>Vehicle</th><th style="width:120px">Status</th></tr></thead>
+            <tbody id="plateTable"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Vehicle classification</h3>
+          </div>
+          <div class="panel-body" id="vehicleClassChart"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Vehicle event log</h3>
+        </div>
+        <table>
+          <thead><tr><th style="width:80px">Time</th><th>Type</th><th>Speed</th><th>Camera</th><th>Sector</th></tr></thead>
+          <tbody id="vehicleTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="view" id="view-behavior">
+      <div class="view-head">
+        <h2>Behavioral analytics</h2>
+        <p>Face detection, low-light movement and suspicious-activity flags — derived from video, not dedicated FRS hardware.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Face detection</h3>
+          </div>
+          <div class="panel-body">
+            <div class="feed-list" id="faceFeed"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Night movement</h3>
+          </div>
+          <div class="panel-body">
+            <div class="feed-list" id="nightFeed"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Suspicious activity</h3>
+          </div>
+          <div class="panel-body">
+            <div class="feed-list" id="suspiciousFeed"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-analyze">
+      <div class="view-head">
+        <h2>Analyze &amp; configure</h2>
+        <p>Run the AI pipeline directly on an uploaded image or video, and manage what it watches for — watchlist plates, known-face profiles, and fence polygons.</p>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="panel">
+          <div class="panel-head"><h3>Analyze an image</h3></div>
+          <div class="panel-body">
+            <form id="imageAnalyzeForm">
+              <input type="file" id="imageFile" accept="image/*" required>
+              <div class="form-row">
+                <input type="text" id="imageCamera" placeholder="Camera name">
+                <input type="text" id="imageSector" placeholder="Sector">
+              </div>
+              <button class="btn primary" type="submit">Analyze image</button>
+            </form>
+            <div id="imageResult" class="analyze-result"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Analyze a video</h3></div>
+          <div class="panel-body">
+            <form id="videoAnalyzeForm">
+              <input type="file" id="videoFile" accept="video/*" required>
+              <div class="form-row">
+                <input type="text" id="videoCamera" placeholder="Camera name">
+                <input type="text" id="videoSector" placeholder="Sector">
+              </div>
+              <div class="form-row">
+                <input type="number" id="videoSampleEvery" placeholder="Sample every N frames" value="10" min="1" max="300">
+              </div>
+              <button class="btn primary" type="submit">Analyze video</button>
+            </form>
+            <div id="videoPlayerWrap" style="position:relative;display:none;margin-top:12px;background:#000;border-radius:var(--radius);overflow:hidden;">
+              <video id="videoPreview" style="width:100%;display:block;" controls></video>
+              <canvas id="videoOverlay" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+            </div>
+            <div id="videoResult" class="analyze-result"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="panel">
+          <div class="panel-head"><h3>Watchlist plates</h3></div>
+          <div class="panel-body">
+            <form id="watchlistForm" class="form-row">
+              <input type="text" id="watchlistPlate" placeholder="Plate number" required>
+              <input type="text" id="watchlistLabel" placeholder="Reason (e.g. Stolen)">
+              <button class="btn primary" type="submit">Add</button>
+            </form>
+            <table><thead><tr><th>Plate</th><th>Label</th><th></th></tr></thead><tbody id="watchlistTable"></tbody></table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Known-face profiles</h3></div>
+          <div class="panel-body">
+            <form id="faceEnrollForm" class="form-row">
+              <input type="text" id="faceName" placeholder="Person's name" required>
+              <input type="file" id="faceFile" accept="image/*" required>
+              <button class="btn primary" type="submit">Enroll</button>
+            </form>
+            <table><thead><tr><th>Name</th><th>Active</th><th></th></tr></thead><tbody id="faceProfileTable"></tbody></table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Fence polygons</h3></div>
+          <div class="panel-body">
+            <form id="polygonForm">
+              <input type="text" id="polygonName" placeholder="Zone name" required>
+              <input type="text" id="polygonCamera" placeholder="Camera (blank = all)">
+              <textarea id="polygonPoints" rows="2" placeholder="Points as JSON, e.g. [[10,10],[400,10],[400,300],[10,300]]" required></textarea>
+              <button class="btn primary" type="submit">Add polygon</button>
+            </form>
+            <table><thead><tr><th>Zone</th><th>Camera</th><th></th></tr></thead><tbody id="polygonTable"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-assistant">
+      <div class="view-head">
+        <h2>Assistant</h2>
+        <p>Ask about cameras, alerts, fence zones or system status — answered live by the backend.</p>
+      </div>
+      <div class="chat-shell">
+        <div class="chat-panel">
+          <div class="chat-log" id="chatLog"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Ask about cameras, alerts, fence zones, status…">
+            <button class="btn primary" id="chatSend">Send</button>
+          </div>
+        </div>
+        <div class="chat-suggest">
+          <div class="label">TRY ASKING</div>
+          <button data-q="How many cameras are online?">How many cameras are online?</button>
+          <button data-q="Any alerts today?">Any alerts today?</button>
+          <button data-q="What is the fence zone status?">What is the fence zone status?</button>
+          <button data-q="System status?">System status?</button>
+          <button data-q="Help">Help</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="modal-overlay show" id="loginOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Operator sign-in</h3></div>
+    <div class="modal-body">
+      <p style="margin:0 0 14px 0;color:var(--ink-soft);font-size:13px;">IBVAP requires an operator session for any control action (cameras, alerts, fence, watchlist, live analysis). Viewing dashboards works without signing in.</p>
+      <form id="loginForm">
+        <input type="text" id="loginOperatorId" placeholder="Operator ID" required autocomplete="username">
+        <input type="password" id="loginPasscode" placeholder="Passcode" required autocomplete="current-password" style="margin-top:8px;">
+        <div id="loginError" style="color:var(--critical);font-size:12.5px;margin-top:8px;display:none;"></div>
+        <button class="btn primary" type="submit" style="margin-top:12px;width:100%;">Sign in</button>
+      </form>
+      <button class="link-btn" id="loginSkip" style="margin-top:10px;color:var(--ink-soft);">Continue without signing in (view only)</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Add camera</h3>
+      <button class="btn ghost" id="modalClose">Close</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="modalCancel">Cancel</button>
+      <button class="btn primary" id="modalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+(function(){
+'use strict';
+
+// Always hit the deployed Render backend directly — no relative-path
+// fallback, so this never depends on what origin the page itself is served from.
+const API_BASE = "http://127.0.0.1:8000";
+
+const API = {
+  login:         (operator_id, passcode) => request('POST', '/auth/login', {operator_id, passcode}),
+  cameras:       () => request('GET', '/cameras'),
+  createCamera:  (body) => request('POST', '/cameras', body),
+  updateCamera:  (id, body) => request('PUT', `/cameras/${id}`, body),
+  deleteCamera:  (id) => request('DELETE', `/cameras/${id}`),
+  alerts:        () => request('GET', '/alerts'),
+  createAlert:   (body) => request('POST', '/alerts', body),
+  deleteAlert:   (id) => request('DELETE', `/alerts/${id}`),
+  zones:         () => request('GET', '/fence/zones'),
+  createZone:    (body) => request('POST', '/fence/zones', body),
+  updateZone:    (id, body) => request('PUT', `/fence/zones/${id}`, body),
+  deleteZone:    (id) => request('DELETE', `/fence/zones/${id}`),
+  fenceSettings: () => request('GET', '/fence/settings'),
+  patchSettings: (body) => request('PATCH', '/fence/settings', body),
+  chat:          (message) => request('POST', '/assistant/chat', {message}),
+  anpr:          () => request('GET', '/analytics/anpr'),
+  night:         () => request('GET', '/analytics/night'),
+  events:        () => request('GET', '/analytics/events?limit=200'),
+  analyzeImage:  (fd) => requestForm('/analytics/image/analyze', fd),
+  analyzeVideo:  (fd) => requestForm('/analytics/video/upload', fd),
+  detectFrame:   (fd) => requestForm('/analytics/frame/detect', fd, true),
+  watchlist:       () => request('GET', '/watchlist/plates'),
+  addWatchlist:    (body) => request('POST', '/watchlist/plates', body),
+  deleteWatchlist: (id) => request('DELETE', `/watchlist/plates/${id}`),
+  faceProfiles:    () => request('GET', '/faces/profiles'),
+  enrollFace:      (fd) => requestForm('/faces/enroll', fd),
+  deleteFaceProfile: (id) => request('DELETE', `/faces/profiles/${id}`),
+  polygons:        () => request('GET', '/fence/polygons'),
+  createPolygon:   (body) => request('POST', '/fence/polygons', body),
+  deletePolygon:   (id) => request('DELETE', `/fence/polygons/${id}`),
+  streamStart:   (id) => request('POST', `/streams/${id}/start`),
+  streamStop:    (id) => request('POST', `/streams/${id}/stop`),
+  streamStatus:  (id) => request('GET', `/streams/${id}/status`),
+};
+
+let inflight = 0;
+function progressStart(){
+  inflight++;
+  const bar = document.getElementById('progressBar');
+  bar.classList.add('active');
+  bar.style.width = '70%';
+}
+function progressEnd(){
+  inflight = Math.max(0, inflight-1);
+  if(inflight === 0){
+    const bar = document.getElementById('progressBar');
+    bar.style.width = '100%';
+    setTimeout(()=>{ bar.classList.remove('active'); bar.style.width = '0%'; }, 260);
+  }
+}
+
+function authHeaders(){
+  return state.token ? {'Authorization': `Bearer ${state.token}`} : {};
+}
+async function request(method, path, body){
+  progressStart();
+  try{
+    const opts = {method, headers:{...authHeaders()}};
+    if(body !== undefined){
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(API_BASE + path, opts);
+    setConnected(true);
+    if(res.status === 401) throw new Error('Sign in required for this action.');
+    if(!res.ok){
+      let detail = res.statusText;
+      try{ const j = await res.json(); if(j.detail) detail = j.detail; }catch(e){}
+      throw new Error(detail || `Request failed (${res.status})`);
+    }
+    if(res.status === 204) return null;
+    return res.json();
+  } catch(e){
+    if(e instanceof TypeError) setConnected(false);
+    throw e;
+  } finally {
+    progressEnd();
+  }
+}
+async function requestForm(path, formData, silent){
+  if(!silent) progressStart();
+  try{
+    const res = await fetch(API_BASE + path, {method:'POST', headers:{...authHeaders()}, body: formData});
+    setConnected(true);
+    if(res.status === 401) throw new Error('Sign in required for this action.');
+    if(!res.ok){
+      let detail = res.statusText;
+      try{ const j = await res.json(); if(j.detail) detail = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); }catch(e){}
+      throw new Error(detail || `Request failed (${res.status})`);
+    }
+    return res.json();
+  } catch(e){
+    if(e instanceof TypeError) setConnected(false);
+    throw e;
+  } finally {
+    if(!silent) progressEnd();
+  }
+}
+
+const state = { cameras: [], alerts: [], zones: [], settings: null, connected: null, firstLoad: true, liveCams: {}, streamStatus: {}, anpr: [], night: [], events: [], watchlist: [], faceProfiles: [], polygons: [], token: localStorage.getItem('ibvap_token')||null, operatorId: localStorage.getItem('ibvap_operator')||null };
+let laptopWebcamStream = null;
+
+const $ = sel => document.querySelector(sel);
+const $all = sel => Array.from(document.querySelectorAll(sel));
+function pad(n){ return n < 10 ? '0'+n : String(n); }
+function esc(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function severityBadgeClass(sev){ return {critical:'critical', warning:'amber', info:'neutral'}[String(sev).toLowerCase()] || 'neutral'; }
+function severityLabel(sev){ const s = String(sev).toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
+function zoneBadgeClass(status){ return status === 'amber' ? 'amber' : 'clear'; }
+function zoneLabel(status){ return status === 'amber' ? 'Elevated' : 'Normal'; }
+
+function animateNumber(el, to){
+  const from = parseInt(el.dataset.val || '0', 10) || 0;
+  if(from === to){ el.textContent = to; return; }
+  el.dataset.val = to;
+  const dur = 450, start = performance.now();
+  function tick(now){
+    const p = Math.min(1, (now-start)/dur);
+    const eased = 1 - Math.pow(1-p, 3);
+    el.textContent = Math.round(from + (to-from)*eased);
+    if(p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function toast(message, type){
+  const stack = $('#toastStack');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'success');
+  el.innerHTML = `<span class="dot"></span>${esc(message)}`;
+  stack.appendChild(el);
+  setTimeout(()=>{
+    el.classList.add('leaving');
+    setTimeout(()=>el.remove(), 260);
+  }, 2600);
+}
+
+function setConnected(ok){
+  if(state.connected === ok) return;
+  state.connected = ok;
+  $('#connBanner').classList.toggle('show', !ok);
+  $('#connPulse').classList.toggle('down', !ok);
+  $('#connLabel').textContent = ok ? 'Backend connected' : 'Backend unreachable';
+}
+$('#connApiBase').textContent = API_BASE || location.origin;
+
+function tickClock(){
+  const now = new Date();
+  const str = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  $('#topClock').textContent = str;
+  $('#railClock').textContent = str;
+}
+setInterval(tickClock, 1000); tickClock();
+
+const VIEW_TITLES = {
+  overview:['Overview','Sector-wide status'],
+  cameras:['Cameras','Live IP camera network'],
+  alerts:['Alerts','Event log & response'],
+  fence:['Virtual fence','Perimeter intrusion detection'],
+  vehicles:['ANPR & vehicles','Plate reads & classification'],
+  behavior:['Behavioral analytics','Face, night & activity detection'],
+  analyze:['Analyze & configure','Run the pipeline & manage watchlists'],
+  assistant:['Assistant','Ask about live sector state'],
+};
+$all('.rail-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const view = btn.dataset.view;
+    $all('.rail-item').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    $all('.view').forEach(v=>v.classList.remove('active'));
+    $('#view-'+view).classList.add('active');
+    $('#topTitle').textContent = VIEW_TITLES[view][0];
+    $('#topCrumb').textContent = VIEW_TITLES[view][1];
+  });
+});
+
+function renderStats(){
+  const online = state.cameras.filter(c=>c.status==='Online').length;
+  animateNumber($('#statCamOnline'), online);
+  $('#statCamTotal').textContent = ' / '+state.cameras.length;
+
+  animateNumber($('#statAlerts'), state.alerts.length);
+  const crit = state.alerts.filter(a=>a.severity==='critical').length;
+  const warn = state.alerts.filter(a=>a.severity==='warning').length;
+  const info = state.alerts.filter(a=>a.severity==='info').length;
+  $('#statAlertTrend').textContent = `${crit} critical · ${warn} warning · ${info} info`;
+
+  const elevated = state.zones.filter(z=>z.status==='amber').length;
+  animateNumber($('#statZonesElevated'), elevated);
+  $('#statZonesTotal').textContent = ' / '+state.zones.length;
+
+  if(state.settings){
+    $('#statArmed').textContent = state.settings.armed ? 'Yes' : 'No';
+    $('#statSensitivity').textContent = 'Sensitivity ' + state.settings.sensitivity + ' / 3';
+  } else {
+    $('#statArmed').textContent = '–';
+  }
+
+  $('#navCamCount').textContent = state.cameras.length;
+  $('#navAlertCount').textContent = state.alerts.length;
+}
+
+function renderSectorMap(){
+  const svg = $('#sectorMap');
+  const bySector = {};
+  state.cameras.forEach(c=>{ (bySector[c.sector] = bySector[c.sector] || []).push(c); });
+  const sectors = Object.keys(bySector);
+  const laneH = sectors.length ? 260 / sectors.length : 260;
+  let parts = [`<rect x="0" y="0" width="640" height="300" fill="#F7F8F6"/>`];
+
+  if(sectors.length === 0){
+    parts.push(`<text x="320" y="150" font-family="Inter" font-size="13" fill="#8A9096" text-anchor="middle">No cameras registered yet</text>`);
+  }
+
+  sectors.forEach((sector, si)=>{
+    const laneY = 30 + si*laneH;
+    const cams = bySector[sector];
+    parts.push(`<text x="16" y="${laneY - 8}" font-family="IBM Plex Mono" font-size="10" fill="#8A9096">${esc(sector.toUpperCase())}</text>`);
+    parts.push(`<line x1="0" y1="${laneY + laneH - 14}" x2="640" y2="${laneY + laneH - 14}" stroke="#DDE1DF" stroke-width="1" stroke-dasharray="3 4"/>`);
+    const spacing = 600 / (cams.length + 1);
+    cams.forEach((c, ci)=>{
+      const x = 20 + spacing*(ci+1);
+      const y = laneY + Math.min(laneH,80)/2 + 6;
+      const color = c.status === 'Online' ? '#2E6B4F' : '#B23A2E';
+      parts.push(`<g>
+        ${c.status==='Online' ? `<circle cx="${x}" cy="${y}" r="9" fill="${color}" opacity="0.18"><animate attributeName="r" values="8;13;8" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.22;0.05;0.22" dur="2.4s" repeatCount="indefinite"/></circle>` : ''}
+        <circle cx="${x}" cy="${y}" r="6" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+        <text x="${x}" y="${y-13}" font-family="IBM Plex Mono" font-size="9" fill="#1B2430" text-anchor="middle">${esc(c.name.split(' ')[0])}</text>
+      </g>`);
+    });
+  });
+  svg.innerHTML = parts.join('');
+}
+
+function renderActivityFeed(){
+  const el = $('#activityFeed');
+  const items = state.alerts.slice(0, 8);
+  if(items.length === 0){
+    el.innerHTML = `<div class="empty-state"><div class="glyph">&#9675;</div>No alerts logged yet.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(a=>`
+    <div class="feed-item">
+      <div class="feed-time">${esc(a.timestamp)}</div>
+      <div class="feed-dot" style="background:${{critical:'#B23A2E',warning:'#A9791F',info:'#8A9096'}[a.severity] || '#8A9096'}"></div>
+      <div>
+        <div class="feed-text"><b>${esc(a.title)}</b></div>
+        <div class="feed-sub">${esc(a.ref_code)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showCamSkeletons(){
+  $('#camGrid').innerHTML = Array.from({length:6}).map(()=>`
+    <div class="cam-tile">
+      <div class="skel skel-cam"></div>
+      <div class="cam-info"><div style="flex:1;"><div class="skel skel-line" style="width:60%;"></div><div class="skel skel-line" style="width:40%;"></div></div></div>
+    </div>
+  `).join('');
+}
+function showAlertSkeletons(){
+  $('#alertTable').innerHTML = Array.from({length:4}).map(()=>`
+    <tr><td colspan="5"><div class="skel skel-line" style="width:100%;height:16px;"></div></td></tr>
+  `).join('');
+}
+function showZoneSkeletons(){
+  $('#zoneList').innerHTML = Array.from({length:3}).map(()=>`<div class="skel skel-line" style="width:100%;height:30px;margin:8px 0;"></div>`).join('');
+}
+
+function camFeedVisual(cam){
+  const bg = cam.img ? `background-image:url('${esc(cam.img)}')` : '';
+  const live = state.liveCams[cam.id];
+  const rtspLive = state.streamStatus[cam.id]?.running && cam.rtsp;
+  const videoLayer = rtspLive
+    ? `<img class="cam-live-video" id="camvideo-${cam.id}" src="${API_BASE}/streams/${cam.id}/mjpeg" alt="Live RTSP feed" />`
+    : (live ? `<video class="cam-live-video" id="camvideo-${cam.id}" autoplay muted playsinline></video>` : `<div class="cam-feed-img" style="${bg}"></div>`);
+  return `
+    <div class="cam-feed">
+      ${videoLayer}
+      <div class="shade"></div>
+      <div class="scan"></div>
+      <div class="cam-topline">
+        <span class="rec"><span class="r-dot"></span>${live ? 'LIVE' : (cam.status === 'Online' ? 'REC' : 'IDLE')}</span>
+        <span>${esc(cam.type)}</span>
+      </div>
+      <div class="cam-bottomline">
+        <span>${esc(cam.ip)}</span>
+        <span>${cam.night ? 'NIGHT VISION' : ''}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderCameras(){
+  const grid = $('#camGrid');
+  if(state.cameras.length === 0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="glyph">&#9675;</div>No cameras registered yet. Add one to get started.</div>`;
+    return;
+  }
+  grid.innerHTML = state.cameras.map(cam=>`
+    <div class="cam-tile ${cam.status==='Offline'?'cam-offline':''}"
+         data-id="${cam.id}"
+         data-status="${esc(cam.status)}"
+         data-night="${cam.night ? '1':'0'}"
+         data-search="${esc((cam.name+' '+cam.sector+' '+cam.ip+' '+cam.type).toLowerCase())}">
+      ${camFeedVisual(cam)}
+      <div class="cam-info">
+        <div>
+          <div class="name">${esc(cam.name)}</div>
+          <div class="loc">${esc(cam.sector)} · ${esc(cam.ip)}</div>
+        </div>
+        <span class="badge ${cam.status==='Online'?'clear':'critical'}"><span class="dot"></span>${esc(cam.status)}</span>
+      </div>
+      <div class="cam-info" style="padding-top:0;">
+        <div class="cam-actions">
+          <button class="btn ghost" data-live-cam="${cam.id}">${(state.liveCams[cam.id] || state.streamStatus[cam.id]?.running) ? 'Stop live' : 'Go live'}</button>
+          <button class="btn ghost" data-fullscreen-cam="${cam.id}">Full screen</button>
+          <button class="btn ghost" data-edit-cam="${cam.id}">Edit</button>
+          <button class="btn ghost danger" data-delete-cam="${cam.id}">Delete</button>
+        </div>
+      </div>
+      ${cam.rtsp ? `
+      <div class="cam-info" style="padding-top:0;">
+        <div class="cam-actions">
+          <button class="btn ghost" data-stream-toggle="${cam.id}">${state.streamStatus[cam.id]?.running ? 'Stop RTSP analysis' : 'Start RTSP analysis'}</button>
+          <span class="meta mono" id="streamStatus-${cam.id}" style="font-size:11px;">${streamStatusLabel(cam.id)}</span>
+        </div>
+      </div>` : ''}
+    </div>
+  `).join('');
+
+  $all('[data-edit-cam]').forEach(btn=>{
+    btn.addEventListener('click', ()=>openCameraModal(state.cameras.find(c=>c.id===+btn.dataset.editCam)));
+  });
+  $all('[data-delete-cam]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this camera?')) return;
+      btn.classList.add('loading'); btn.disabled = true;
+      try{
+        stopLiveCam(+btn.dataset.deleteCam);
+        await API.deleteCamera(+btn.dataset.deleteCam);
+        await loadCameras();
+        renderAll();
+        toast('Camera deleted', 'success');
+      }catch(e){ toast('Could not delete camera: '+e.message, 'error'); }
+    });
+  });
+  $all('[data-live-cam]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = +btn.dataset.liveCam;
+      if(state.liveCams[id] || state.streamStatus[id]?.running) stopLiveCam(id);
+      else goLiveCam(id);
+    });
+  });
+  $all('[data-stream-toggle]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = +btn.dataset.streamToggle;
+      btn.classList.add('loading'); btn.disabled = true;
+      try{
+        const running = state.streamStatus[id]?.running;
+        if(running) await API.streamStop(id); else await API.streamStart(id);
+        await pollStreamStatus(id);
+        renderCameras();
+        toast(running ? 'Live analysis stopped' : 'Live analysis started — pulling frames from the RTSP feed and running detection on a timer.', 'success');
+      }catch(e){ toast('Could not toggle live analysis: '+e.message, 'error'); }
+      finally{ btn.classList.remove('loading'); btn.disabled=false; }
+    });
+  });
+  $all('[data-fullscreen-cam]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const tile = document.querySelector(`.cam-tile[data-id="${btn.dataset.fullscreenCam}"]`);
+      const feed = tile?.querySelector('.cam-feed');
+      if(feed) toggleFullscreen(feed);
+    });
+  });
+
+  Object.keys(state.liveCams).forEach(id=>{
+    const v = document.getElementById(`camvideo-${id}`);
+    if(v && state.liveCams[id]?.stream) v.srcObject = state.liveCams[id].stream;
+  });
+
+  applyCamFilters();
+}
+
+function toggleFullscreen(el){
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if(fsEl){
+    if(document.exitFullscreen) document.exitFullscreen();
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    return;
+  }
+  if(el.requestFullscreen) el.requestFullscreen();
+  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else toast('Full screen is not supported in this browser.', 'error');
+}
+
+async function goLiveCam(id){
+  const cam=state.cameras.find(c=>c.id===id);
+  if(cam && cam.rtsp){
+    try{
+      await API.streamStart(id);
+      await pollStreamStatus(id);
+      renderCameras();
+      toast('RTSP live feed connected — analytics are running.', 'success');
+    }catch(e){ toast('Could not start RTSP feed: '+e.message,'error'); }
+    return;
+  }
+  toast('This camera has no RTSP URL. Add one in Edit camera.', 'error');
+}
+
+async function stopLiveCam(id){
+  const cam=state.cameras.find(c=>c.id===+id);
+  if(cam && cam.rtsp && state.streamStatus[id]?.running){
+    try{ await API.streamStop(id); }catch(e){}
+    delete state.streamStatus[id]; renderCameras(); return;
+  }
+  const live = state.liveCams[id];
+  if(!live) return;
+  live.stream.getTracks().forEach(t=>t.stop());
+  delete state.liveCams[id];
+  renderCameras();
+}
+
+function streamStatusLabel(id){
+  const s = state.streamStatus[id];
+  if(!s) return 'Not analyzing';
+  if(s.running===false && s.error) return 'Error: '+s.error;
+  if(s.running && s.connected===false) return 'Connecting…';
+  if(s.running && s.last_result) return `Live · ${s.last_result.vehicles}v ${s.last_result.faces}f ${s.last_result.plates}p · brightness ${s.last_result.brightness}`;
+  if(s.running) return 'Live · analyzing…';
+  return 'Stopped';
+}
+async function pollStreamStatus(id){
+  try{ state.streamStatus[id] = await API.streamStatus(id); }catch(e){}
+  const el = document.getElementById('streamStatus-'+id);
+  if(el) el.textContent = streamStatusLabel(id);
+}
+function pollAllStreamStatuses(){
+  state.cameras.filter(c=>c.rtsp).forEach(c=>pollStreamStatus(c.id));
+}
+setInterval(pollAllStreamStatuses, 4000);
+
+let camFilter = 'all';
+function applyCamFilters(){
+  const q = $('#camSearch').value.trim().toLowerCase();
+  $all('.cam-tile[data-id]').forEach(tile=>{
+    const status = tile.dataset.status;
+    const night = tile.dataset.night === '1';
+    let show = true;
+    if(camFilter==='online' && status!=='Online') show=false;
+    if(camFilter==='offline' && status!=='Offline') show=false;
+    if(camFilter==='night' && !night) show=false;
+    if(q && !tile.dataset.search.includes(q)) show=false;
+    tile.style.display = show ? '' : 'none';
+  });
+}
+$all('[data-camfilter]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $all('[data-camfilter]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    camFilter = btn.dataset.camfilter;
+    applyCamFilters();
+  });
+});
+$('#camSearch').addEventListener('input', applyCamFilters);
+
+function openCameraModal(cam){
+  const editing = !!cam;
+  $('#modalTitle').textContent = editing ? 'Edit camera' : 'Add camera';
+  $('#modalBody').innerHTML = `
+    <div class="field-error" id="modalError"></div>
+    <div class="field"><label>Name</label><input type="text" id="f-name" value="${esc(cam?.name||'')}"></div>
+    <div class="field"><label>Sector</label><input type="text" id="f-sector" value="${esc(cam?.sector||'')}"></div>
+    <div class="field"><label>IP address</label><input type="text" id="f-ip" value="${esc(cam?.ip||'')}"></div>
+    <div class="field"><label>RTSP path (optional)</label><input type="text" id="f-rtsp" value="${esc(cam?.rtsp||'')}"></div>
+    <div class="field"><label>Image URL (optional)</label><input type="text" id="f-img" value="${esc(cam?.img||'')}"></div>
+    <div class="field-row">
+      <div class="field" style="flex:1;">
+        <label>Type</label>
+        <select id="f-type">${['Fixed IP','PTZ','Thermal','Dome'].map(t=>`<option ${cam?.type===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Status</label>
+        <select id="f-status">${['Online','Offline'].map(t=>`<option ${cam?.status===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field-row">
+      <input type="checkbox" id="f-night" ${cam?.night?'checked':''}>
+      <label for="f-night" style="font-size:13px;color:var(--ink);">Night vision capable</label>
+    </div>
+  `;
+  $('#modalSave').onclick = async ()=>{
+    const body = {
+      name: $('#f-name').value.trim(), sector: $('#f-sector').value.trim(), ip: $('#f-ip').value.trim(),
+      rtsp: $('#f-rtsp').value.trim(), img: $('#f-img').value.trim(),
+      type: $('#f-type').value, status: $('#f-status').value, night: $('#f-night').checked,
+    };
+    if(!body.name || !body.sector || !body.ip){
+      $('#modalError').textContent = 'Name, sector and IP are required.';
+      $('#modalError').classList.add('show');
+      return;
+    }
+    const saveBtn = $('#modalSave');
+    saveBtn.classList.add('loading'); saveBtn.disabled = true;
+    try{
+      if(editing) await API.updateCamera(cam.id, body);
+      else await API.createCamera(body);
+      closeModal();
+      await loadCameras();
+      renderAll();
+      toast(editing ? 'Camera updated' : 'Camera added', 'success');
+    }catch(e){
+      $('#modalError').textContent = 'Save failed: '+e.message;
+      $('#modalError').classList.add('show');
+    } finally {
+      saveBtn.classList.remove('loading'); saveBtn.disabled = false;
+    }
+  };
+  openModal();
+}
+$('#addCameraBtn').addEventListener('click', ()=>openCameraModal(null));
+
+let alertFilter = 'all';
+function renderAlerts(){
+  const tbody = $('#alertTable');
+  const q = $('#alertSearch').value.trim().toLowerCase();
+  const rows = state.alerts.filter(a=>{
+    if(alertFilter!=='all' && a.severity!==alertFilter) return false;
+    if(q && !(a.title+' '+a.description).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="glyph">&#9675;</div>No alerts match this filter.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(a=>`
+    <tr>
+      <td class="mono">${esc(a.ref_code)}</td>
+      <td class="mono">${esc(a.timestamp)}</td>
+      <td>${esc(a.title)}${a.description ? `<div class="desc">${esc(a.description)}</div>` : ''}</td>
+      <td><span class="badge ${severityBadgeClass(a.severity)}"><span class="dot"></span>${severityLabel(a.severity)}</span></td>
+      <td style="text-align:right;"><button class="btn ghost danger" data-dismiss-alert="${a.id}">Dismiss</button></td>
+    </tr>
+  `).join('');
+
+  $all('[data-dismiss-alert]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      btn.classList.add('loading'); btn.disabled = true;
+      try{
+        await API.deleteAlert(+btn.dataset.dismissAlert);
+        await loadAlerts();
+        renderAll();
+        toast('Alert dismissed', 'success');
+      }catch(e){ toast('Could not dismiss alert: '+e.message, 'error'); }
+    });
+  });
+}
+$all('[data-alertfilter]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $all('[data-alertfilter]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    alertFilter = btn.dataset.alertfilter;
+    renderAlerts();
+  });
+});
+$('#alertSearch').addEventListener('input', renderAlerts);
+
+function openAlertModal(){
+  $('#modalTitle').textContent = 'Log alert';
+  $('#modalBody').innerHTML = `
+    <div class="field-error" id="modalError"></div>
+    <div class="field">
+      <label>Severity</label>
+      <select id="f-severity">
+        <option value="critical">Critical</option>
+        <option value="warning" selected>Warning</option>
+        <option value="info">Info</option>
+      </select>
+    </div>
+    <div class="field"><label>Title</label><input type="text" id="f-title"></div>
+    <div class="field"><label>Description (optional)</label><textarea id="f-desc"></textarea></div>
+  `;
+  $('#modalSave').onclick = async ()=>{
+    const body = { severity: $('#f-severity').value, title: $('#f-title').value.trim(), description: $('#f-desc').value.trim() };
+    if(!body.title){
+      $('#modalError').textContent = 'A title is required.';
+      $('#modalError').classList.add('show');
+      return;
+    }
+    const saveBtn = $('#modalSave');
+    saveBtn.classList.add('loading'); saveBtn.disabled = true;
+    try{
+      await API.createAlert(body);
+      closeModal();
+      await loadAlerts();
+      renderAll();
+      toast('Alert logged', 'success');
+    }catch(e){
+      $('#modalError').textContent = 'Save failed: '+e.message;
+      $('#modalError').classList.add('show');
+    } finally {
+      saveBtn.classList.remove('loading'); saveBtn.disabled = false;
+    }
+  };
+  openModal();
+}
+$('#addAlertBtn').addEventListener('click', openAlertModal);
+
+function renderZones(){
+  const el = $('#zoneList');
+  if(state.zones.length === 0){
+    el.innerHTML = `<div class="empty-state"><div class="glyph">&#9675;</div>No zones configured yet.</div>`;
+    return;
+  }
+  el.innerHTML = state.zones.map(z=>`
+    <div class="zone-row">
+      <span class="badge ${zoneBadgeClass(z.status)}"><span class="dot"></span>${zoneLabel(z.status)}</span>
+      <span class="zone-name">${esc(z.name)}</span>
+      <div class="zone-actions">
+        <button class="btn ghost" data-toggle-zone="${z.id}">${z.status==='amber' ? 'Mark normal' : 'Mark elevated'}</button>
+        <button class="btn ghost danger" data-delete-zone="${z.id}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  $all('[data-toggle-zone]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const zone = state.zones.find(z=>z.id===+btn.dataset.toggleZone);
+      const newStatus = zone.status === 'amber' ? 'teal' : 'amber';
+      btn.classList.add('loading'); btn.disabled = true;
+      try{
+        await API.updateZone(zone.id, {name: zone.name, status: newStatus});
+        await loadZones();
+        renderAll();
+        toast('Zone updated', 'success');
+      }catch(e){ toast('Could not update zone: '+e.message, 'error'); }
+    });
+  });
+  $all('[data-delete-zone]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this zone?')) return;
+      try{
+        await API.deleteZone(+btn.dataset.deleteZone);
+        await loadZones();
+        renderAll();
+        toast('Zone deleted', 'success');
+      }catch(e){ toast('Could not delete zone: '+e.message, 'error'); }
+    });
+  });
+}
+
+$('#addZoneBtn').addEventListener('click', ()=>{
+  $('#modalTitle').textContent = 'Add zone';
+  $('#modalBody').innerHTML = `
+    <div class="field-error" id="modalError"></div>
+    <div class="field"><label>Zone name</label><input type="text" id="f-zonename"></div>
+  `;
+  $('#modalSave').onclick = async ()=>{
+    const name = $('#f-zonename').value.trim();
+    if(!name){
+      $('#modalError').textContent = 'A zone name is required.';
+      $('#modalError').classList.add('show');
+      return;
+    }
+    const saveBtn = $('#modalSave');
+    saveBtn.classList.add('loading'); saveBtn.disabled = true;
+    try{
+      await API.createZone({name, status:'teal'});
+      closeModal();
+      await loadZones();
+      renderAll();
+      toast('Zone added', 'success');
+    }catch(e){
+      $('#modalError').textContent = 'Save failed: '+e.message;
+      $('#modalError').classList.add('show');
+    } finally {
+      saveBtn.classList.remove('loading'); saveBtn.disabled = false;
+    }
+  };
+  openModal();
+});
+
+function renderFenceSettings(){
+  const el = $('#fenceSettings');
+  const s = state.settings;
+  if(!s){
+    el.innerHTML = `<div class="empty-state"><div class="glyph">&#9675;</div>Settings unavailable.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="setting-row">
+      <div><div class="setting-label">Perimeter armed</div><div class="setting-sub">Master switch for fence intrusion alerts</div></div>
+      <button class="toggle ${s.armed?'on':''}" data-toggle-setting="armed"></button>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Human detection</div><div class="setting-sub">Flag humans crossing a fence line</div></div>
+      <button class="toggle ${s.human_detection?'on':''}" data-toggle-setting="human_detection"></button>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Animal filter</div><div class="setting-sub">Suppress alerts triggered by wildlife</div></div>
+      <button class="toggle ${s.animal_filter?'on':''}" data-toggle-setting="animal_filter"></button>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Directional alert</div><div class="setting-sub">Only alert on inbound crossings</div></div>
+      <button class="toggle ${s.directional_alert?'on':''}" data-toggle-setting="directional_alert"></button>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Sensitivity</div><div class="setting-sub">Level ${s.sensitivity} of 3</div></div>
+      <div class="sensitivity-track">${[1,2,3].map(n=>`<button class="sensitivity-step ${n<=s.sensitivity?'on':''}" data-sensitivity="${n}"></button>`).join('')}</div>
+    </div>
+  `;
+  $all('[data-toggle-setting]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const key = btn.dataset.toggleSetting;
+      try{
+        state.settings = await API.patchSettings({[key]: !state.settings[key]});
+        renderFenceSettings();
+        renderStats();
+        flashSaved();
+      }catch(e){ toast('Could not update setting: '+e.message, 'error'); }
+    });
+  });
+  $all('[data-sensitivity]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      try{
+        state.settings = await API.patchSettings({sensitivity: +btn.dataset.sensitivity});
+        renderFenceSettings();
+        renderStats();
+        flashSaved();
+      }catch(e){ toast('Could not update sensitivity: '+e.message, 'error'); }
+    });
+  });
+}
+function flashSaved(){
+  const tag = $('#settingsSavedTag');
+  tag.textContent = 'SAVED';
+  tag.style.color = 'var(--clear)';
+  setTimeout(()=>{ tag.textContent = ''; }, 1500);
+}
+
+function kindColor(kind){ return {critical:'#B23A2E', amber:'#A9791F', clear:'#2E6B4F', neutral:'#8A9096'}[kind] || '#8A9096'; }
+function plateStatusBadge(status){
+  const map = {registered:['clear','Registered'], unregistered:['amber','Unregistered'], watchlist:['critical','Watchlist match'], Detected:['amber','Detected'], Unreadable:['neutral','Unreadable']};
+  const [cls,label] = map[status] || ['neutral', status||'Unknown'];
+  return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
+}
+function eventSeverityKind(sev){ return {critical:'critical', warning:'amber', info:'neutral'}[String(sev).toLowerCase()] || 'neutral'; }
+const feedHtml = items => items.length ? items.map(it=>`
+    <div class="feed-item"><div class="feed-time">${esc(it.t)}</div><div class="feed-dot" style="background:${kindColor(it.kind)}"></div>
+      <div><div class="feed-text">${esc(it.text)}</div><div class="feed-sub">${esc(it.camera||'')}</div></div></div>
+  `).join('') : `<div class="empty-state"><div class="glyph">&#9675;</div>Nothing logged yet. Analyze an image or video to populate this feed.</div>`;
+
+async function loadAnalytics(){
+  const [anpr, events, night, watchlist, faceProfiles, polygons] = await Promise.all([
+    API.anpr().catch(()=>[]), API.events().catch(()=>[]), API.night().catch(()=>[]),
+    API.watchlist().catch(()=>[]), API.faceProfiles().catch(()=>[]), API.polygons().catch(()=>[]),
+  ]);
+  state.anpr = anpr; state.events = events; state.night = night;
+  state.watchlist = watchlist; state.faceProfiles = faceProfiles; state.polygons = polygons;
+}
+function watchlistPlateSet(){ return new Set(state.watchlist.filter(w=>w.active).map(w=>w.plate.replace(/\s/g,'').toUpperCase())); }
+function renderVehiclesView(){
+  const wl = watchlistPlateSet();
+  $('#plateTable').innerHTML = state.anpr.length ? state.anpr.map(p=>{
+    const isWatch = wl.has((p.plate||'').replace(/\s/g,'').toUpperCase());
+    return `<tr><td class="mono">${esc(p.timestamp)}</td><td class="mono">${esc(p.plate)}</td><td>${esc(p.camera||'—')}</td><td>${esc(p.vehicle_type||'—')}</td><td>${plateStatusBadge(isWatch?'watchlist':p.status)}</td></tr>`;
+  }).join('') : `<tr><td colspan="5"><div class="empty-state"><div class="glyph">&#9675;</div>No ANPR reads yet — analyze an image or video with a visible plate.</div></td></tr>`;
+
+  const vehicleEvents = state.events.filter(e=>['intrusion','loitering','suspicious_activity'].includes(e.event_type));
+  $('#vehicleTable').innerHTML = vehicleEvents.length ? vehicleEvents.map(e=>`
+    <tr><td class="mono">${esc(e.time_seconds!=null?e.time_seconds+'s':'')}</td><td>${esc(e.event_type.replace(/_/g,' '))}</td><td class="mono">${Math.round((e.confidence||0)*100)}%</td><td>${esc(e.camera||'—')}</td><td>${esc(e.sector||'—')}</td></tr>
+  `).join('') : `<tr><td colspan="5"><div class="empty-state"><div class="glyph">&#9675;</div>No vehicle events logged yet.</div></td></tr>`;
+
+  const counts={};
+  state.anpr.forEach(p=>{ const t=p.vehicle_type||'Unclassified'; counts[t]=(counts[t]||0)+1; });
+  const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+  const entries = Object.entries(counts);
+  $('#vehicleClassChart').innerHTML = entries.length ? entries.map(([label,n])=>{
+    const pct = Math.round(n/total*100);
+    return `<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span>${esc(label)}</span><span class="mono" style="color:var(--ink-soft);">${pct}%</span></div><div style="height:7px;background:var(--paper);border-radius:20px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--signal);border-radius:20px;transition:width 0.6s var(--ease);"></div></div></div>`;
+  }).join('') : `<div class="empty-state"><div class="glyph">&#9675;</div>No classified vehicles yet.</div>`;
+}
+function renderBehaviorView(){
+  const faceEvents = state.events.filter(e=>['face_match','face_detected'].includes(e.event_type))
+    .map(e=>({t:e.time_seconds!=null?e.time_seconds+'s':'', text:e.description, camera:e.camera, kind:eventSeverityKind(e.severity)}));
+  $('#faceFeed').innerHTML = feedHtml(faceEvents);
+
+  const nightItems = state.night.map(n=>({t:n.timestamp, text:n.description, camera:n.camera, kind:'amber'}));
+  $('#nightFeed').innerHTML = feedHtml(nightItems);
+
+  const suspItems = state.events.filter(e=>['loitering','suspicious_activity'].includes(e.event_type))
+    .map(e=>({t:e.time_seconds!=null?e.time_seconds+'s':'', text:e.description, camera:e.camera, kind:eventSeverityKind(e.severity)}));
+  $('#suspiciousFeed').innerHTML = feedHtml(suspItems);
+}
+function renderWatchlistTable(){
+  $('#watchlistTable').innerHTML = state.watchlist.length ? state.watchlist.map(w=>`
+    <tr><td class="mono">${esc(w.plate)}</td><td>${esc(w.label||'')}</td><td><button class="small-del" data-del-watchlist="${w.id}">✕</button></td></tr>
+  `).join('') : `<tr><td colspan="3" style="color:var(--ink-soft);font-size:12.5px;">No watchlisted plates.</td></tr>`;
+  $all('[data-del-watchlist]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    try{ await API.deleteWatchlist(+btn.dataset.delWatchlist); state.watchlist = await API.watchlist(); renderWatchlistTable(); renderVehiclesView(); toast('Removed from watchlist','success'); }
+    catch(e){ toast('Could not remove: '+e.message, 'error'); }
+  }));
+}
+function renderFaceProfileTable(){
+  $('#faceProfileTable').innerHTML = state.faceProfiles.length ? state.faceProfiles.map(p=>`
+    <tr><td>${esc(p.name)}</td><td>${p.active?'Yes':'No'}</td><td><button class="small-del" data-del-face="${p.id}">✕</button></td></tr>
+  `).join('') : `<tr><td colspan="3" style="color:var(--ink-soft);font-size:12.5px;">No enrolled profiles.</td></tr>`;
+  $all('[data-del-face]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    try{ await API.deleteFaceProfile(+btn.dataset.delFace); state.faceProfiles = await API.faceProfiles(); renderFaceProfileTable(); toast('Profile removed','success'); }
+    catch(e){ toast('Could not remove: '+e.message, 'error'); }
+  }));
+}
+function renderPolygonTable(){
+  $('#polygonTable').innerHTML = state.polygons.length ? state.polygons.map(z=>`
+    <tr><td>${esc(z.name)}</td><td>${esc(z.camera||'All')}</td><td><button class="small-del" data-del-polygon="${z.id}">✕</button></td></tr>
+  `).join('') : `<tr><td colspan="3" style="color:var(--ink-soft);font-size:12.5px;">No polygons configured.</td></tr>`;
+  $all('[data-del-polygon]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    try{ await API.deletePolygon(+btn.dataset.delPolygon); state.polygons = await API.polygons(); renderPolygonTable(); toast('Polygon removed','success'); }
+    catch(e){ toast('Could not remove: '+e.message, 'error'); }
+  }));
+}
+function renderAnalyzeView(){ renderWatchlistTable(); renderFaceProfileTable(); renderPolygonTable(); }
+
+$('#imageAnalyzeForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('file', $('#imageFile').files[0]);
+  fd.append('camera', $('#imageCamera').value);
+  fd.append('sector', $('#imageSector').value);
+  const box = $('#imageResult'); box.classList.add('show'); box.textContent = 'Analyzing…';
+  try{
+    const r = await API.analyzeImage(fd);
+    box.textContent = JSON.stringify(r, null, 2);
+    await loadAnalytics(); renderVehiclesView(); renderBehaviorView(); await loadAlerts(); renderAlerts(); renderStats();
+    toast('Image analyzed', 'success');
+  }catch(e2){ box.textContent = 'Error: '+e2.message; toast('Analysis failed: '+e2.message, 'error'); }
+});
+let _liveBoxes = [], _liveBoxesTime = 0, _liveLoopRunning = false;
+const _captureCanvas = document.createElement('canvas');
+const LIVE_DETECT_GAP_MS = 350, LIVE_BOX_STICK_MS = 900;
+
+function ensureVideoPreview(file){
+  const video = $('#videoPreview'), canvas = $('#videoOverlay'), wrap = $('#videoPlayerWrap');
+  wrap.style.display = 'block';
+  video.src = URL.createObjectURL(file);
+  const resize = () => { canvas.width = video.clientWidth; canvas.height = video.clientHeight; };
+  video.onloadedmetadata = () => { resize(); video.play().catch(()=>{}); };
+  window.addEventListener('resize', () => { if(wrap.style.display !== 'none') resize(); });
+  startLiveDrawLoop(video, canvas);
+  startLiveDetectLoop(video);
+}
+function startLiveDrawLoop(video, canvas){
+  if(video._drawLoopStarted) return; video._drawLoopStarted = true;
+  const ctx = canvas.getContext('2d');
+  function draw(){
+    if(canvas.width && canvas.height) ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(video.videoWidth && (Date.now()-_liveBoxesTime) < LIVE_BOX_STICK_MS){
+      const scaleX = canvas.width/video.videoWidth, scaleY = canvas.height/video.videoHeight;
+      _liveBoxes.forEach(d=>{
+        const [x1,y1,x2,y2] = d.box;
+        const bx=x1*scaleX, by=y1*scaleY, bw=(x2-x1)*scaleX, bh=(y2-y1)*scaleY;
+        const color = d.is_human ? '#22c55e' : '#facc15';
+        ctx.strokeStyle=color; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
+        const label = `${d.type} ${Math.round(d.confidence*100)}%`;
+        ctx.font='12px "IBM Plex Mono", monospace';
+        const tw=ctx.measureText(label).width;
+        ctx.fillStyle=color; ctx.fillRect(bx, Math.max(0,by-16), tw+8, 16);
+        ctx.fillStyle='#000'; ctx.fillText(label, bx+4, Math.max(12,by-4));
+      });
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+let _lastDetectCount = 0;
+function startLiveDetectLoop(video){
+  if(_liveLoopRunning) return;
+  _liveLoopRunning = true;
+  async function tick(){
+    if(!video.paused && !video.ended && video.videoWidth){
+      try{
+        _captureCanvas.width = video.videoWidth; _captureCanvas.height = video.videoHeight;
+        _captureCanvas.getContext('2d').drawImage(video, 0, 0, _captureCanvas.width, _captureCanvas.height);
+        const blob = await new Promise(res => _captureCanvas.toBlob(res, 'image/jpeg', 0.6));
+        if(blob){
+          const fd = new FormData(); fd.append('file', blob, 'frame.jpg');
+          const r = await API.detectFrame(fd);
+          _liveBoxes = r.vehicles || []; _liveBoxesTime = Date.now();
+          // Notify once when detections go from none to some, instead of
+          // flashing the top progress bar on every 350ms poll.
+          if(_liveBoxes.length > 0 && _lastDetectCount === 0){
+            const humans = _liveBoxes.filter(d=>d.is_human).length;
+            const others = _liveBoxes.length - humans;
+            const parts = [];
+            if(humans) parts.push(`${humans} human${humans>1?'s':''}`);
+            if(others) parts.push(`${others} vehicle${others>1?'s':''}`);
+            toast('Object detected — ' + parts.join(', '), 'success');
+          }
+          _lastDetectCount = _liveBoxes.length;
+        }
+      }catch(err){ }
+    } else {
+      _lastDetectCount = 0;
+    }
+    setTimeout(tick, LIVE_DETECT_GAP_MS);
+  }
+  tick();
+}
+$('#videoFile').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(file) ensureVideoPreview(file);
+});
+$('#videoAnalyzeForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('file', $('#videoFile').files[0]);
+  fd.append('camera', $('#videoCamera').value);
+  fd.append('sector', $('#videoSector').value);
+  fd.append('sample_every', $('#videoSampleEvery').value || '10');
+  const box = $('#videoResult'); box.classList.add('show'); box.textContent = 'Running full analysis for the report (alerts, plate reads, event log)… live boxes above are already active and don\'t need this to finish.';
+  try{
+    const r = await API.analyzeVideo(fd);
+    box.textContent = JSON.stringify(r.analysis ? {video:r.video, analysis:r.analysis} : r, null, 2);
+    await loadAnalytics(); renderVehiclesView(); renderBehaviorView(); await loadAlerts(); renderAlerts(); renderStats();
+    toast('Full report ready', 'success');
+  }catch(e2){ box.textContent = 'Error: '+e2.message; toast('Analysis failed: '+e2.message, 'error'); }
+});
+$('#watchlistForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  try{
+    await API.addWatchlist({plate: $('#watchlistPlate').value, label: $('#watchlistLabel').value});
+    $('#watchlistForm').reset();
+    state.watchlist = await API.watchlist(); renderWatchlistTable(); renderVehiclesView();
+    toast('Added to watchlist', 'success');
+  }catch(e2){ toast('Could not add: '+e2.message, 'error'); }
+});
+$('#faceEnrollForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('name', $('#faceName').value);
+  fd.append('file', $('#faceFile').files[0]);
+  try{
+    await API.enrollFace(fd);
+    $('#faceEnrollForm').reset();
+    state.faceProfiles = await API.faceProfiles(); renderFaceProfileTable();
+    toast('Face profile enrolled', 'success');
+  }catch(e2){ toast('Could not enroll: '+e2.message, 'error'); }
+});
+$('#polygonForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  let points;
+  try{ points = JSON.parse($('#polygonPoints').value); if(!Array.isArray(points)) throw new Error('not an array'); }
+  catch(e2){ toast('Points must be valid JSON, e.g. [[10,10],[400,10],[400,300]]', 'error'); return; }
+  try{
+    await API.createPolygon({name: $('#polygonName').value, camera: $('#polygonCamera').value, sector:'', points, enabled:true});
+    $('#polygonForm').reset();
+    state.polygons = await API.polygons(); renderPolygonTable();
+    toast('Fence polygon added', 'success');
+  }catch(e2){ toast('Could not add polygon: '+e2.message, 'error'); }
+});
+
+function updateOperatorChip(){
+  $('#operatorName').textContent = state.operatorId || 'Guest';
+  $('#operatorAvatar').textContent = state.operatorId ? state.operatorId[0].toUpperCase() : 'G';
+}
+function showLogin(){ $('#loginOverlay').classList.add('show'); }
+function hideLogin(){ $('#loginOverlay').classList.remove('show'); }
+if(!state.token) showLogin();
+updateOperatorChip();
+$('#loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const err = $('#loginError'); err.style.display='none';
+  try{
+    const r = await API.login($('#loginOperatorId').value, $('#loginPasscode').value);
+    state.token = r.token; state.operatorId = r.operator_id;
+    localStorage.setItem('ibvap_token', r.token); localStorage.setItem('ibvap_operator', r.operator_id);
+    updateOperatorChip(); hideLogin();
+    toast(`Signed in as ${r.operator_id}`, 'success');
+  }catch(e2){ err.textContent = e2.message || 'Sign-in failed.'; err.style.display='block'; }
+});
+$('#loginSkip').addEventListener('click', hideLogin);
+$('#operatorChip').addEventListener('click', ()=>{
+  if(!state.token){ showLogin(); return; }
+  if(!confirm('Sign out?')) return;
+  state.token=null; state.operatorId=null;
+  localStorage.removeItem('ibvap_token'); localStorage.removeItem('ibvap_operator');
+  updateOperatorChip();
+  toast('Signed out', 'success');
+});
+
+const chatLog = $('#chatLog');
+function addMsg(text, from){
+  const now = new Date();
+  const t = pad(now.getHours())+':'+pad(now.getMinutes());
+  const div = document.createElement('div');
+  div.className = 'msg '+from;
+  div.innerHTML = esc(text).replace(/\n/g,'<br>') + `<div class="t">${t}</div>`;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+function addTyping(){
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typingMsg';
+  div.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+function removeTyping(){ const el = $('#typingMsg'); if(el) el.remove(); }
+
+async function sendChat(text){
+  if(!text.trim()) return;
+  addMsg(text, 'user');
+  $('#chatInput').value='';
+  addTyping();
+  try{
+    const res = await API.chat(text);
+    removeTyping();
+    addMsg(res.reply, 'bot');
+  }catch(e){
+    removeTyping();
+    addMsg("I can't reach the backend right now, so I can't answer that. "+e.message, 'bot');
+  }
+}
+$('#chatSend').addEventListener('click', ()=>sendChat($('#chatInput').value));
+$('#chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat($('#chatInput').value); });
+$all('.chat-suggest button').forEach(btn=>{
+  btn.addEventListener('click', ()=>sendChat(btn.dataset.q));
+});
+
+function openModal(){ $('#modalOverlay').classList.add('show'); }
+function closeModal(){ $('#modalOverlay').classList.remove('show'); }
+$('#modalClose').addEventListener('click', closeModal);
+$('#modalCancel').addEventListener('click', closeModal);
+$('#modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+async function startLaptopWebcam(){
+  const video = $('#laptopWebcamVideo');
+  const placeholder = $('#webcamPlaceholder');
+  const status = $('#webcamStatusBadge');
+  const startBtn = $('#startWebcamBtn');
+  const stopBtn = $('#stopWebcamBtn');
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('Camera access is not supported by this browser.');
+    }
+    if(laptopWebcamStream){
+      laptopWebcamStream.getTracks().forEach(t=>t.stop());
+    }
+    laptopWebcamStream = await navigator.mediaDevices.getUserMedia({video:true, audio:false});
+    video.srcObject = laptopWebcamStream;
+    video.style.display = 'block';
+    placeholder.style.display = 'none';
+    status.className = 'badge clear';
+    status.innerHTML = '<span class="dot"></span>Running';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    toast('Laptop webcam started.', 'success');
+  }catch(e){
+    toast('Could not access webcam: '+e.message, 'error');
+  }
+}
+
+function stopLaptopWebcam(){
+  if(laptopWebcamStream){
+    laptopWebcamStream.getTracks().forEach(t=>t.stop());
+    laptopWebcamStream = null;
+  }
+  const video = $('#laptopWebcamVideo');
+  const placeholder = $('#webcamPlaceholder');
+  const status = $('#webcamStatusBadge');
+  if(video) { video.srcObject = null; video.style.display = 'none'; }
+  if(placeholder) placeholder.style.display = '';
+  if(status){
+    status.className = 'badge critical';
+    status.innerHTML = '<span class="dot"></span>Stopped';
+  }
+  $('#startWebcamBtn').disabled = false;
+  $('#stopWebcamBtn').disabled = true;
+}
+
+$('#startWebcamBtn').addEventListener('click', startLaptopWebcam);
+$('#stopWebcamBtn').addEventListener('click', stopLaptopWebcam);
+window.addEventListener('beforeunload', stopLaptopWebcam);
+
+async function loadCameras(){ state.cameras = await API.cameras(); }
+async function loadAlerts(){ state.alerts = (await API.alerts()).sort((a,b)=>b.id-a.id); }
+async function loadZones(){ state.zones = await API.zones(); }
+async function loadSettings(){ state.settings = await API.fenceSettings(); }
+
+function renderAll(){
+  renderStats();
+  renderSectorMap();
+  renderActivityFeed();
+  renderCameras();
+  renderAlerts();
+  renderZones();
+  renderFenceSettings();
+  renderVehiclesView();
+  renderBehaviorView();
+  renderAnalyzeView();
+}
+
+/* ---------- Boot splash: real progress, paced to a minimum ~3.6s dwell ---------- */
+const SPLASH_STEPS = [
+  {key:'cameras',   label:'Camera registry',    fn:loadCameras},
+  {key:'alerts',    label:'Alert log',          fn:loadAlerts},
+  {key:'zones',     label:'Fence zones',        fn:loadZones},
+  {key:'settings',  label:'Detection settings', fn:loadSettings},
+  {key:'analytics', label:'Analytics feed',     fn:loadAnalytics},
+];
+const SPLASH_MIN_MS = 3600; // keep the splash on screen 3–4s even if the backend answers instantly
+let splashPct = 0;
+
+function renderSplashChecks(doneKeys){
+  const el = $('#splashChecks');
+  if(!el) return;
+  el.innerHTML = SPLASH_STEPS.map(s=>`<div class="item ${doneKeys.includes(s.key)?'done':''}">${esc(s.label)}</div>`).join('');
+}
+function bumpSplashPct(pct){
+  const fill = $('#splashFill'), pctEl = $('#splashPct');
+  if(!fill || pct <= splashPct) return;
+  splashPct = pct;
+  fill.style.width = pct+'%';
+  pctEl.textContent = Math.round(pct)+'%';
+}
+function setSplashStatus(text){
+  const el = $('#splashStatus');
+  if(el) el.textContent = text;
+}
+function hideSplash(){
+  const el = $('#splashScreen');
+  if(!el) return;
+  el.classList.add('hide');
+  setTimeout(()=>el.remove(), 550);
+}
+// Ticks the meter up toward ~90% over SPLASH_MIN_MS regardless of how fast
+// the real API calls finish, so the boot sequence always reads as deliberate.
+function paceSplash(){
+  return new Promise(resolve=>{
+    const start = performance.now();
+    (function tick(now){
+      const elapsed = now - start;
+      bumpSplashPct(Math.min(90, 6 + (elapsed/SPLASH_MIN_MS)*84));
+      if(elapsed < SPLASH_MIN_MS) requestAnimationFrame(tick);
+      else resolve();
+    })(start);
+  });
+}
+
+async function loadEverything(){
+  const splashEl = $('#splashScreen');
+  const runningSplash = state.firstLoad && !!splashEl;
+
+  if(state.firstLoad){
+    showCamSkeletons();
+    showAlertSkeletons();
+    showZoneSkeletons();
+  }
+  if(runningSplash){
+    splashPct = 0;
+    renderSplashChecks([]);
+    bumpSplashPct(4);
+    setSplashStatus('Connecting to backend…');
+  }
+
+  const doneKeys = [];
+  let anyError = false;
+  const loadPromise = Promise.all(SPLASH_STEPS.map(async step=>{
+    try{ await step.fn(); }
+    catch(e){ anyError = true; }
+    finally{
+      doneKeys.push(step.key);
+      if(runningSplash){
+        bumpSplashPct(10 + (doneKeys.length/SPLASH_STEPS.length)*70);
+        setSplashStatus(step.label + ' loaded');
+        renderSplashChecks(doneKeys);
+      }
+    }
+  }));
+
+  if(runningSplash){
+    await Promise.all([loadPromise, paceSplash()]);
+  } else {
+    await loadPromise;
+  }
+  setConnected(!anyError);
+
+  renderAll();
+  state.firstLoad = false;
+
+  if(runningSplash){
+    bumpSplashPct(100);
+    setSplashStatus(state.connected ? 'Ready' : 'Backend unreachable — showing cached view');
+    renderSplashChecks(SPLASH_STEPS.map(s=>s.key));
+    setTimeout(hideSplash, 420);
+  }
+}
+
+$('#refreshAllBtn').addEventListener('click', async ()=>{
+  const btn = $('#refreshAllBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+  await loadEverything();
+  btn.classList.remove('loading'); btn.disabled = false;
+  if(state.connected) toast('Dashboard refreshed', 'success');
+});
+$('#connRetry').addEventListener('click', loadEverything);
+
+addMsg('Ready. Ask me about cameras, alerts, fence zones or overall system status.', 'bot');
+loadEverything();
+setInterval(loadEverything, 20000);
+pollAllStreamStatuses();
+
+})();
+</script>
+</body>
+</html>

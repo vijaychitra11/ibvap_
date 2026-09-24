@@ -1,0 +1,21 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+
+# --- vehicle / license-plate detection service (backend/detection.py, webcam.py) ---
+# NOTE: ultralytics pulls in plain `opencv-python` as its own transitive dependency,
+# which fights with opencv-python-headless below (both packages install into the
+# same cv2 folder). Pinning here is not enough to guarantee load order - after
+# installing this file you MUST also run fix_opencv.py (see backend/fix_opencv.py)
+# to force the headless build back into place.
+ultralytics
+opencv-python-headless==4.11.0.86
+pytesseract
+numpy
+python-multipart
+python-dotenv
+pillow
+
+# --- assistant endpoint (app/main.py: /assistant/chat) ---
+groq
